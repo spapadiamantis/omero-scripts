@@ -13,7 +13,7 @@ from omero.gateway import BlitzGateway
 from omero.rtypes import robject, rstring
 
 # load
-def original_metadata_to_map_ann(conn, dataset_id):
+def original_metadata_to_map_ann(conn, dataset_id, attributes=None):
     """
     Load the images in the specified dataset
     :param conn: The BlitzGateway
@@ -36,11 +36,14 @@ def original_metadata_to_map_ann(conn, dataset_id):
         map_ann_data = []
 
         # Pick these items of metadata -> map annotation
-        attributes = ('Information|Document|Comment', 'Information|Document|Description')
+        if attributes is None:
+            attributes = ('Information|Document|Comment', 'Information|Document|Description')
 
         # Load the 'Original Metadata' for the image
         # ==========================================
+        #if not image.listAnnotations():
         om = image.loadOriginalMetadata()
+
         if om is not None:
             key_values = om[1] + om[2]
             for key_value in key_values:
@@ -63,12 +66,13 @@ if __name__ == "__main__":
     # Start declaration
     # Define the script name and description, and a single 'required' parameter
     client = scripts.client(
-        'original_metadata_server.py',
+        'Original_Metadata_Server_Side.py',
         """
-    This script does connect to OMERO.
+        This script does connect to OMERO.
         """,
-        scripts.Long("datasetId", optional=False),
-
+        scripts.Long("datasetId", optional=False,grouping='1'),
+        scripts.String("Tags", grouping="2.1",
+            description="Optional parameter, contains the names of the key-value pairs, returns all map annotation if left empty, values should be separated with commas"),
         authors=["OME Team", "OME Team"],
         institutions=["University of Dundee"],
         contact="ome-users@lists.openmicroscopy.org.uk",
@@ -82,13 +86,16 @@ if __name__ == "__main__":
                 script_params[key] = client.getInput(key, unwrap=True)
 
         dataset_id = script_params["datasetId"]
+        attributes = script_params["Tags"]
+        attributes = attributes.split(", ")
+        attributes = tuple(i for i in attributes)
 
         # wrap client to use the Blitz Gateway                if len(key_value) > 1 and key_value[0] in attributes:
 
         conn = BlitzGateway(client_obj=client)
 
         # load the images
-        images = original_metadata_to_map_ann(conn, dataset_id)
+        images = original_metadata_to_map_ann(conn, dataset_id, attributes)
 
         # return output to the user
         if images is None:
